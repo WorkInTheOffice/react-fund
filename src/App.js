@@ -9,25 +9,32 @@ import { usePosts } from "./hooks/usePosts";
 import PostService from "./API/PostService";
 import Loader from "./components/UI/Loader/Loader";
 import { useFetching } from "./hooks/useFetching";
+import { getPageCount, getPagesArray } from "./utils/pages";
 
 function App() {
   const [posts, setPosts] = useState([]);
-
   const [filter, setFilter] = useState({ sort: "", query: "" });
   const [modal, setModal] = useState(false);
+  const [totalPages, setTotalPages] = useState(0);
+  const [limit, setLimit] = useState(10);
+  const [page, setPage] = useState(1);
   const sortedAndSearchedPosts = usePosts(posts, filter.sort, filter.query);
+  let pagesArray = getPagesArray(totalPages);
+
   const [fetchPosts, isPostsLoading, postError] = useFetching(async () => {
-    const posts = await PostService.getAll();
-    const postsWithRef = posts.map((post) => ({
+    const responce = await PostService.getAll(limit, page);
+    const postsWithRef = responce.data.map((post) => ({
       ...post,
       nodeRef: createRef(),
     }));
     setPosts(postsWithRef);
+    const totalCount = responce.headers["x-total-count"];
+    setTotalPages(getPageCount(totalCount, limit));
   });
 
   useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [page]);
 
   const createPost = (newPost) => {
     setPosts([...posts, newPost]);
@@ -67,6 +74,16 @@ function App() {
           title={"Posts about JS"}
         />
       )}
+      <div className="page__wrapper">
+        {pagesArray.map((p) => (
+          <span 
+            onClick={() => setPage(p)}
+            key={p}
+            className={page === p ? "page page__current" : "page"}>
+            {p}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
